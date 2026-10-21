@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reconocimiento Facial con Barra de Progreso</title>
+    <title>Reconocimiento Facial - Permiso y Selección</title>
     <style>
         body {
             margin: 0;
@@ -24,6 +24,56 @@
             color: #ffa500;
             text-align: center;
         }
+
+        /* Panel de selección previa de cámara */
+        .camera-setup-panel {
+            width: 100%;
+            max-width: 480px;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .camera-setup-panel label {
+            font-size: 14px;
+            color: #ccc;
+            font-weight: bold;
+        }
+
+        select, button.start-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            font-size: 15px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        select {
+            background-color: #2a2a2a;
+            color: #ffffff;
+        }
+
+        button.start-btn {
+            background-color: #0284c7;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s;
+        }
+
+        button.start-btn:hover {
+            background-color: #0369a1;
+        }
+
         #progress-container {
             width: 300px;
             background-color: #333;
@@ -31,7 +81,9 @@
             overflow: hidden;
             margin-bottom: 20px;
             border: 1px solid #444;
+            display: none;
         }
+
         #progress-bar {
             width: 0%;
             height: 20px;
@@ -43,23 +95,31 @@
             font-weight: bold;
             transition: width 0.3s ease;
         }
+
         #container {
             position: relative;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             width: 640px;
+            max-width: 100%;
             height: 480px;
             display: none;
         }
+
         video, canvas {
             display: block;
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
+
         #box-container {
             width: 640px;
+            max-width: 100%;
             height: 480px;
             border: 2px solid #00ff00;
             border-radius: 8px;
@@ -72,12 +132,14 @@
             align-items: center;
             text-align: center;
         }
+
         #face-box {
             color: #ffffff;
             font-size: 22px;
             font-weight: bold;
             line-height: 1.6;
         }
+
         .success-title {
             color: #00ff00;
             font-size: 28px;
@@ -85,7 +147,7 @@
             margin-bottom: 15px;
             letter-spacing: 1px;
         }
-        /* Estilo para el botón de Reintentar */
+
         #retry-btn {
             margin-top: 25px;
             padding: 10px 25px;
@@ -98,6 +160,7 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
+
         #retry-btn:hover {
             background-color: #45a049;
         }
@@ -106,23 +169,34 @@
 <body>
 
     <h2>Reconocimiento Facial</h2>
-    <div id="status">Iniciando sistema...</div>
+    <div id="status">Selecciona tu cámara y concede el permiso para iniciar.</div>
 
-    <!-- Barra de progreso -->
+    <!-- Panel de selección previa de cámara (Visible al instante) -->
+    <div class="camera-setup-panel" id="cameraSetupPanel">
+        <label for="cameraSelect">Selecciona la cámara a utilizar:</label>
+        <select id="cameraSelect">
+            <option value="">Haz clic en "Permitir..." para listar cámaras</option>
+        </select>
+        <button class="start-btn" id="btnRequestPermission">Permitir Acceso y Listar Cámaras</button>
+    </div>
+
+    <!-- Barra de progreso para carga de IA -->
     <div id="progress-container">
         <div id="progress-bar">0%</div>
     </div>
 
+    <!-- Contenedor del video -->
     <div id="container">
-        <video id="video" autoplay muted width="640" height="480"></video>
+        <video id="video" autoplay playsinline muted width="640" height="480"></video>
     </div>
 
+    <!-- Pantalla de confirmación de acceso -->
     <div id="box-container">
         <div id="face-box"></div>
         <button id="retry-btn" onclick="reiniciarReconocimiento()">Reintentar</button>
     </div>
 
-    <!-- Cargar face-api.js desde CDN -->
+    <!-- Librería face-api.js -->
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.js"></script>
 
     <script>
@@ -130,32 +204,83 @@
         const statusDiv = document.getElementById('status');
         const progressBar = document.getElementById('progress-bar');
         const progressContainer = document.getElementById('progress-container');
+        const cameraSetupPanel = document.getElementById('cameraSetupPanel');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const btnRequestPermission = document.getElementById('btnRequestPermission');
         const container = document.getElementById('container');
         const boxContainer = document.getElementById('box-container');
         const faceBox = document.getElementById('face-box');
 
         let faceMatcher = null;
         let detectionInterval = null;
+        let currentStream = null;
+        let selectedDeviceId = null;
+
+        // 1. Paso 1: Al hacer clic en el botón, se solicita el permiso y se listan los dispositivos
+        btnRequestPermission.addEventListener('click', async () => {
+            try {
+                statusDiv.innerText = "Solicitando permiso de cámara...";
+                
+                // Pide el permiso nativo al navegador/Android
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                tempStream.getTracks().forEach(track => track.stop());
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                cameraSelect.innerHTML = '';
+
+                if (videoDevices.length === 0) {
+                    statusDiv.innerText = "Error: No se encontraron cámaras en el dispositivo.";
+                    return;
+                }
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    const label = device.label || `Cámara ${index + 1}`;
+                    option.text = label;
+
+                    if (/back|rear|trasera|environment/i.test(label) && index === 0) {
+                        option.selected = true;
+                    }
+                    cameraSelect.appendChild(option);
+                });
+
+                // Cambiar el botón para que ahora proceda a cargar la IA y arrancar
+                btnRequestPermission.innerText = "Comenzar Reconocimiento Facial";
+                statusDiv.innerText = "Permiso concedido. Selecciona la lente y presiona comenzar.";
+                
+                // Cambiar el evento del botón para el siguiente paso
+                btnRequestPermission.removeEventListener('click', arguments.callee);
+                btnRequestPermission.addEventListener('click', iniciarCargaYReconocimiento);
+
+            } catch (err) {
+                console.error("Permiso denegado o error:", err);
+                statusDiv.innerText = "Error: Debes permitir el acceso a la cámara para continuar.";
+            }
+        });
+
+        // 2. Paso 2: Al presionar comenzar, se guardan los datos y se cargan los modelos de IA
+        async function iniciarCargaYReconocimiento() {
+            selectedDeviceId = cameraSelect.value;
+            if (!selectedDeviceId) {
+                alert("Por favor selecciona una cámara.");
+                return;
+            }
+
+            // Ocultar panel de selección y mostrar barra de carga de modelos
+            cameraSetupPanel.style.display = 'none';
+            progressContainer.style.display = 'block';
+            statusDiv.innerText = "Cargando modelos de reconocimiento facial...";
+
+            await loadModelsAndDatabase();
+        }
 
         function updateProgress(percent, text) {
             progressBar.style.width = percent + '%';
             progressBar.innerText = percent + '%';
             statusDiv.innerText = text;
-        }
-
-        function startVideo() {
-            statusDiv.innerText = "Abriendo cámara web...";
-            navigator.mediaDevices.getUserMedia({ video: {} })
-                .then((stream) => {
-                    video.srcObject = stream;
-                    progressContainer.style.display = 'none';
-                    container.style.display = 'block';
-                    statusDiv.innerText = "Buscando rostro...";
-                })
-                .catch((err) => {
-                    console.error("Error al acceder a la cámara: ", err);
-                    statusDiv.innerText = "Error: No se pudo acceder a la cámara.";
-                });
         }
 
         async function loadModelsAndDatabase() {
@@ -169,7 +294,7 @@
                 updateProgress(70, "Cargando modelo de reconocimiento...");
                 await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 
-                updateProgress(90, "Procesando fotos de referencia ...");
+                updateProgress(90, "Procesando fotos de referencia...");
                 
                 const labeledDescriptors = await Promise.all([
                     createLabeledFace('Jhoan Barrera', 'https://lh3.googleusercontent.com/a/ACg8ocJjOQPPjy9UEYOI57oqtBLHwl8Y7VgFJGXg8Q3JzYivZoUfEt53=s288-c-no')
@@ -177,15 +302,18 @@
 
                 faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
 
-                updateProgress(100, "¡Carga completa!");
+                updateProgress(100, "Carga completa");
                 
-                setTimeout(() => {
-                    startVideo();
-                }, 500);
+                setTimeout(async () => {
+                    progressContainer.style.display = 'none';
+                    container.style.display = 'block';
+                    statusDiv.innerText = "Buscando rostro...";
+                    await abrirCamaraYDetectar(selectedDeviceId);
+                }, 400);
 
             } catch (err) {
                 console.error("Error inicializando:", err);
-                statusDiv.innerText = "Error: No se pudo cargar la imagen de referencia.";
+                statusDiv.innerText = "Error: No se pudieron cargar los modelos o la imagen de referencia.";
             }
         }
 
@@ -200,16 +328,43 @@
             return new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]);
         }
 
-        loadModelsAndDatabase();
+        async function abrirCamaraYDetectar(deviceId) {
+            const constraints = {
+                video: { deviceId: { exact: deviceId } }
+            };
 
-        video.addEventListener('play', () => {
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                iniciarDeteccionFacial();
+            } catch (err) {
+                console.warn("Error con deviceId exacto, intentando fallback genérico...", err);
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    video.srcObject = currentStream;
+                    iniciarDeteccionFacial();
+                } catch (fallbackErr) {
+                    statusDiv.innerText = "Error: No se pudo abrir la cámara seleccionada.";
+                    console.error(fallbackErr);
+                }
+            }
+        }
+
+        // 3. Paso 3: Bucle de detección de rostros con face-api.js
+        function iniciarDeteccionFacial() {
+            video.addEventListener('loadedmetadata', () => {
+                video.play();
+            });
+
             const canvas = faceapi.createCanvasFromMedia(video);
             container.append(canvas);
 
-            const displaySize = { width: video.width, height: video.height };
+            const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
             faceapi.matchDimensions(canvas, displaySize);
 
             detectionInterval = setInterval(async () => {
+                if (video.paused || video.ended) return;
+
                 const detections = await faceapi.detectAllFaces(
                     video, 
                     new faceapi.TinyFaceDetectorOptions()
@@ -225,18 +380,19 @@
                     const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
                     
                     if (bestMatch.label !== 'unknown') {
-                        // 1. Detener el bucle de detección
+                        // Detener la detección
                         clearInterval(detectionInterval);
+                        detectionInterval = null;
                         
-                        // 2. Apagar la cámara y ocultar video
+                        // Detener el stream de la cámara y ocultar el video
                         video.pause();
-                        if (video.srcObject) {
-                            video.srcObject.getTracks().forEach(track => track.stop());
+                        if (currentStream) {
+                            currentStream.getTracks().forEach(track => track.stop());
                         }
                         container.style.display = 'none';
                         statusDiv.style.display = 'none';
                         
-                        // 3. Mostrar el recuadro con fondo oscuro y los datos de acceso
+                        // Mostrar resultado de acceso
                         boxContainer.style.display = 'flex';
                         
                         const now = new Date();
@@ -252,9 +408,8 @@
                     }
                 }
             }, 100);
-        });
+        }
 
-        // Función para reiniciar el proceso al hacer clic en "Reintentar"
         function reiniciarReconocimiento() {
             window.location.reload();
         }
