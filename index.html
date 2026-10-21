@@ -1,418 +1,789 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reconocimiento Facial - Permiso y Selección</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Probar Cámara Online — Prueba de Webcam (PiliApp Replica)</title>
+    <meta name="description" content="Test de webcam online gratis. Mira la imagen en vivo de tu cámara, comprueba resolución, tasa de fotogramas y brillo, y cambia entre cámaras. No se sube nada.">
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        },
+                        darkbg: '#121212',
+                        darkcard: '#1e1e1e',
+                        darkborder: '#2e2e2e'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts Inter & Bootstrap Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
     <style>
         body {
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #121212;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-        }
-        h2 {
-            margin-bottom: 5px;
-        }
-        #status {
-            margin-bottom: 15px;
-            font-size: 14px;
-            color: #ffa500;
-            text-align: center;
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Panel de selección previa de cámara */
-        .camera-setup-panel {
-            width: 100%;
-            max-width: 480px;
-            background-color: #1e1e1e;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #333;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 20px;
+        /* Mirror Mode CSS */
+        .mirror-mode {
+            transform: scaleX(-1);
         }
 
-        .camera-setup-panel label {
-            font-size: 14px;
-            color: #ccc;
-            font-weight: bold;
+        /* Custom Spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border-left-color: #0284c7;
+            animation: spin 1s linear infinite;
         }
 
-        select, button.start-btn {
-            width: 100%;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #444;
-            font-size: 15px;
-            outline: none;
-            box-sizing: border-box;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        select {
-            background-color: #2a2a2a;
-            color: #ffffff;
+        /* Pulse LED Dot */
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #22c55e;
+            animation: pulse 1.5s infinite;
         }
 
-        button.start-btn {
-            background-color: #0284c7;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            transition: background-color 0.2s;
-        }
-
-        button.start-btn:hover {
-            background-color: #0369a1;
-        }
-
-        #progress-container {
-            width: 300px;
-            background-color: #333;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 20px;
-            border: 1px solid #444;
-            display: none;
-        }
-
-        #progress-bar {
-            width: 0%;
-            height: 20px;
-            background-color: #4CAF50;
-            text-align: center;
-            line-height: 20px;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            transition: width 0.3s ease;
-        }
-
-        #container {
-            position: relative;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            width: 640px;
-            max-width: 100%;
-            height: 480px;
-            display: none;
-        }
-
-        video, canvas {
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #box-container {
-            width: 640px;
-            max-width: 100%;
-            height: 480px;
-            border: 2px solid #00ff00;
-            border-radius: 8px;
-            display: none;
-            position: relative;
-            background-color: #1a1a1a;
-            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.2);
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-
-        #face-box {
-            color: #ffffff;
-            font-size: 22px;
-            font-weight: bold;
-            line-height: 1.6;
-        }
-
-        .success-title {
-            color: #00ff00;
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            letter-spacing: 1px;
-        }
-
-        #retry-btn {
-            margin-top: 25px;
-            padding: 10px 25px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        #retry-btn:hover {
-            background-color: #45a049;
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-800 dark:bg-darkbg dark:text-slate-100 min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
 
-    <h2>Reconocimiento Facial</h2>
-    <div id="status">Selecciona tu cámara y concede el permiso para iniciar.</div>
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-200 dark:border-darkborder bg-white/80 dark:bg-darkcard/80 backdrop-blur sticky top-0 z-50 transition-colors">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-6">
+                <a href="#" class="flex items-center gap-2 font-bold text-lg text-slate-900 dark:text-white hover:text-sky-600 dark:hover:text-sky-400 transition-colors">
+                    <i class="bi bi-house-door-fill text-sky-600 dark:text-sky-400"></i>
+                    <span>PiliApp</span>
+                </a>
+                <nav class="hidden md:flex items-center space-x-1 text-sm font-medium">
+                    <a href="#test-webcam" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-semibold">Test de webcam</a>
+                    <a href="#other-tests" class="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">Test de dispositivos</a>
+                    <a href="#recorder" onclick="showNotification('Grabadora disponible pronto en la versión completa')" class="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">Grabadoras</a>
+                </nav>
+            </div>
 
-    <!-- Panel de selección previa de cámara (Visible al instante) -->
-    <div class="camera-setup-panel" id="cameraSetupPanel">
-        <label for="cameraSelect">Selecciona la cámara a utilizar:</label>
-        <select id="cameraSelect">
-            <option value="">Haz clic en "Permitir..." para listar cámaras</option>
-        </select>
-        <button class="start-btn" id="btnRequestPermission">Permitir Acceso y Listar Cámaras</button>
+            <!-- Quick Navigation Items & Dark Mode Toggle -->
+            <div class="flex items-center space-x-2">
+                <ul class="hidden lg:flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-400 mr-2 border-r border-slate-200 dark:border-slate-700 pr-3">
+                    <li><button onclick="switchTestTab('keyboard')" class="hover:text-sky-500 px-2 py-1">Teclado</button></li>
+                    <li><button onclick="switchTestTab('mouse')" class="hover:text-sky-500 px-2 py-1">Ratón</button></li>
+                    <li><button onclick="switchTestTab('mic')" class="hover:text-sky-500 px-2 py-1">Micro</button></li>
+                    <li><button onclick="switchTestTab('speaker')" class="hover:text-sky-500 px-2 py-1">Altavoz</button></li>
+                    <li><button onclick="switchTestTab('screen')" class="hover:text-sky-500 px-2 py-1">Pantalla</button></li>
+                </ul>
+
+                <!-- Theme Switcher Button -->
+                <button id="themeToggle" type="button" aria-label="Cambiar tema" class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    <i id="themeIconSun" class="bi bi-sun-fill text-amber-400 hidden"></i>
+                    <i id="themeIconMoon" class="bi bi-moon-stars-fill text-slate-700 dark:text-slate-200"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-20 right-4 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 px-4 py-3 rounded-lg shadow-xl text-sm flex items-center gap-2 border border-slate-700">
+        <i class="bi bi-info-circle-fill text-sky-400"></i>
+        <span id="toastMsg">Mensaje</span>
     </div>
 
-    <!-- Barra de progreso para carga de IA -->
-    <div id="progress-container">
-        <div id="progress-bar">0%</div>
+    <!-- Main Container -->
+    <main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full">
+        
+        <!-- Header Title Section -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-2">
+                Test de webcam
+            </h1>
+            <p class="text-slate-600 dark:text-slate-400 text-base max-w-2xl mx-auto">
+                Mira la imagen en vivo de tu cámara y cambia entre cámaras si tienes más de una.
+            </p>
+        </div>
+
+        <!-- Central Testing Panel -->
+        <div class="bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder rounded-2xl shadow-xl overflow-hidden mb-6 transition-all">
+            
+            <!-- Stage Viewport (Idle, Waiting, Live Video) -->
+            <div id="stage" class="relative w-full aspect-video bg-slate-900 flex flex-col items-center justify-center p-4 overflow-hidden min-h-[320px]">
+                
+                <!-- Hidden Video Element -->
+                <video id="video" playsinline muted class="w-full h-full object-contain absolute inset-0 hidden"></video>
+
+                <!-- Hidden Canvas for Pixel Analysis -->
+                <canvas id="analysisCanvas" class="hidden"></canvas>
+
+                <!-- State 1: IDLE STATE -->
+                <div id="idleState" class="flex flex-col items-center justify-center text-center max-w-md z-10 p-6">
+                    <div class="w-20 h-20 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-5 text-slate-400 shadow-inner">
+                        <i class="bi bi-camera-video-fill text-4xl"></i>
+                    </div>
+
+                    <!-- Camera pre-selector (if devices pre-detected) -->
+                    <div id="preSelectContainer" class="w-full mb-4 hidden">
+                        <label for="preDevSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Cámara detectada</label>
+                        <select id="preDevSelect" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-sky-500">
+                        </select>
+                    </div>
+
+                    <button id="startBtn" class="w-full sm:w-auto px-8 py-3.5 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white font-semibold text-base rounded-xl shadow-lg shadow-sky-600/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+                        <i class="bi bi-play-circle-fill text-lg"></i>
+                        <span>Iniciar test de cámara</span>
+                    </button>
+
+                    <p class="text-xs text-slate-400 mt-4 leading-relaxed">
+                        Tu navegador pedirá acceso a la cámara — elige <strong class="text-slate-200">Permitir</strong>. La imagen se comprueba únicamente en tu dispositivo y nunca se envía a ningún sitio.
+                    </p>
+
+                    <!-- Error Alert Box -->
+                    <div id="errorBox" class="hidden mt-4 p-3 bg-red-900/40 border border-red-700/60 text-red-200 text-xs rounded-lg text-left w-full flex items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill text-red-400 text-sm shrink-0 mt-0.5"></i>
+                        <span id="errorMsg">Error al iniciar la cámara.</span>
+                    </div>
+                </div>
+
+                <!-- State 2: WAITING FOR PERMISSIONS STATE -->
+                <div id="waitState" class="hidden flex-col items-center justify-center text-center max-w-sm z-10 p-6">
+                    <div class="spinner mb-4"></div>
+                    <h3 class="text-lg font-bold text-white mb-2">Esperando tu permiso…</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Busca el aviso cerca de la barra de direcciones de tu navegador y elige <strong>Permitir</strong>. En el móvil, desplázate hasta arriba de la página para verlo.
+                    </p>
+                </div>
+
+                <!-- Live Indicator Tag when camera active -->
+                <div id="liveBadge" class="absolute top-4 left-4 z-20 bg-slate-900/80 backdrop-blur border border-slate-700 text-white text-xs px-3 py-1.5 rounded-full hidden items-center gap-2">
+                    <span class="live-dot"></span>
+                    <span class="font-semibold tracking-wider uppercase text-[10px]">En vivo</span>
+                </div>
+            </div>
+
+            <!-- Live Controls Toolbar (Shown when active) -->
+            <div id="liveControls" class="hidden bg-slate-900 border-t border-slate-800 p-3 sm:p-4 transition-all">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    
+                    <!-- Select Camera Dropdown -->
+                    <div class="flex-1 min-w-[200px]">
+                        <select id="devSelect" aria-label="Seleccionar cámara" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500 transition-all">
+                            <option value="">Buscando cámaras...</option>
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button id="mirrorBtn" class="flex-1 sm:flex-initial px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-slate-200 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2">
+                            <i class="bi bi-arrow-left-right text-sky-400"></i>
+                            <span>Espejo</span>
+                        </button>
+                        
+                        <button id="stopBtn" class="flex-1 sm:flex-initial px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2">
+                            <i class="bi bi-stop-circle-fill text-rose-400"></i>
+                            <span>Detener</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Verdict Banner -->
+                <div id="verdictBanner" class="mt-3 p-3 rounded-lg text-xs font-semibold flex items-center gap-2 border bg-emerald-950/40 border-emerald-600/40 text-emerald-300">
+                    <i class="bi bi-check-circle-fill text-emerald-400 text-base"></i>
+                    <span id="verdictText">Tu cámara funciona correctamente.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Metrics Panel -->
+        <div id="resultsPanel" class="bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder rounded-xl p-4 sm:p-6 shadow-sm mb-6 transition-all">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                Métricas en tiempo real
+            </h3>
+            
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+                <!-- Metric 1: Resolution -->
+                <div class="p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50">
+                    <div id="rRes" class="text-base sm:text-2xl font-extrabold text-slate-800 dark:text-white font-mono">—</div>
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mt-1">resolución</div>
+                </div>
+
+                <!-- Metric 2: Frame Rate (FPS) -->
+                <div class="p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50">
+                    <div id="rFps" class="text-base sm:text-2xl font-extrabold text-slate-800 dark:text-white font-mono">—</div>
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mt-1">tasa de fotogramas</div>
+                </div>
+
+                <!-- Metric 3: Brightness -->
+                <div class="p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50">
+                    <div id="rBright" class="text-base sm:text-2xl font-extrabold text-slate-800 dark:text-white font-mono">—</div>
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase font-medium mt-1">brillo</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Privacy Assurance Note -->
+        <div class="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-8 bg-slate-200/50 dark:bg-slate-800/30 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 text-center">
+            <i class="bi bi-shield-lock-fill text-sky-500 text-sm"></i>
+            <span><strong>No se sube nada</strong> — la imagen se muestra solo en esta pestaña y nunca sale de tu dispositivo.</span>
+        </div>
+
+        <!-- Quick Access Tool Links -->
+        <div id="other-tests" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-10">
+            <button onclick="openTestModal('Teclado')" class="p-3 rounded-xl bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder hover:border-sky-500 dark:hover:border-sky-500 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-all flex flex-col items-center gap-2 shadow-sm">
+                <i class="bi bi-keyboard text-xl text-sky-500"></i>
+                <span>Test de teclado</span>
+            </button>
+            <button onclick="openTestModal('Ratón')" class="p-3 rounded-xl bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder hover:border-sky-500 dark:hover:border-sky-500 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-all flex flex-col items-center gap-2 shadow-sm">
+                <i class="bi bi-mouse text-xl text-sky-500"></i>
+                <span>Test de ratón</span>
+            </button>
+            <button onclick="openTestModal('Micrófono')" class="p-3 rounded-xl bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder hover:border-sky-500 dark:hover:border-sky-500 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-all flex flex-col items-center gap-2 shadow-sm">
+                <i class="bi bi-mic text-xl text-sky-500"></i>
+                <span>Test de micro</span>
+            </button>
+            <button onclick="openTestModal('Altavoces')" class="p-3 rounded-xl bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder hover:border-sky-500 dark:hover:border-sky-500 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-all flex flex-col items-center gap-2 shadow-sm">
+                <i class="bi bi-volume-up text-xl text-sky-500"></i>
+                <span>Test de altavoces</span>
+            </button>
+            <button onclick="openTestModal('Pantalla')" class="p-3 rounded-xl bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder hover:border-sky-500 dark:hover:border-sky-500 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-all flex flex-col items-center gap-2 shadow-sm col-span-2 sm:col-span-1">
+                <i class="bi bi-display text-xl text-sky-500"></i>
+                <span>Test de pantalla</span>
+            </button>
+        </div>
+
+        <!-- Explanatory Content Section -->
+        <article class="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-300 text-sm leading-relaxed border-t border-slate-200 dark:border-slate-800 pt-8">
+            <p class="text-base">
+                La vista previa es la prueba. No hay botón de veredicto ni nada que descargar, porque una cámara que muestra una imagen correcta es una cámara que funciona. La única pregunta real es si la imagen que tienes delante es la que reciben los demás.
+            </p>
+
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-6 mb-2">Por qué no aparece en espejo</h3>
+            <p>
+                Las aplicaciones de videollamada invierten tu propia imagen para que se comporte como un espejo. Se siente natural, y por eso un texto que acercas a la cámara se lee al revés para ti, pero correctamente para todos los demás en la llamada. Esta página empieza al contrario: lo que ves es lo que recibe el otro extremo. Activa <strong>Espejo</strong> para comparar ambas versiones, y úsalo para comprobar si el logo de una camiseta o una pizarra se ve del lado correcto antes de una llamada, en vez de después.
+            </p>
+
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-6 mb-2">Resolución, tasa de fotogramas, brillo</h3>
+            <p>
+                La <strong>resolución</strong> es lo que la cámara está entregando en ese momento, que a menudo queda por debajo de lo que anuncia la ficha técnica — el navegador negocia un tamaño, y un equipo saturado o un puerto USB lento pueden conformarse con menos. La <strong>tasa de fotogramas</strong> se cuenta a partir de los fotogramas que realmente llegan, no de la que anuncia la cámara, así que un dispositivo que se abre correctamente y luego no envía nada tiene dónde mostrarlo. El <strong>brillo</strong> se mide directamente sobre la imagen, lo que permite a la página distinguir una sala demasiado oscura de un objetivo tapado.
+            </p>
+
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-6 mb-2">Cambiar de cámara</h3>
+            <p>
+                El selector lista todas las cámaras a las que tu navegador puede acceder, y merece la pena abrirlo aunque creas que solo tienes una: una webcam externa y una integrada aparecen ambas ahí, y el navegador no siempre empieza por la que querías.
+            </p>
+        </article>
+    </main>
+
+    <!-- Generic Device Test Simulation Modal -->
+    <div id="testModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <button onclick="closeTestModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <i class="bi bi-x-lg text-lg"></i>
+            </button>
+            <h3 id="modalTitle" class="text-xl font-bold text-slate-900 dark:text-white mb-3">Test</h3>
+            <div id="modalBody" class="text-sm text-slate-600 dark:text-slate-300 mb-6 min-h-[120px] flex flex-col justify-center items-center text-center">
+                <!-- Dynamic Content -->
+            </div>
+            <div class="flex justify-end">
+                <button onclick="closeTestModal()" class="px-5 py-2 bg-sky-600 text-white font-medium text-sm rounded-lg hover:bg-sky-500">
+                    Cerrar
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- Contenedor del video -->
-    <div id="container">
-        <video id="video" autoplay playsinline muted width="640" height="480"></video>
-    </div>
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-darkborder bg-white dark:bg-darkcard py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
+        <div class="max-w-4xl mx-auto px-4 space-y-3">
+            <div class="flex flex-wrap justify-center gap-x-3 gap-y-1">
+                <a href="#" class="hover:underline">Inicio</a> <span>|</span>
+                <a href="#" class="hover:underline">Símbolo</a> <span>|</span>
+                <a href="#" class="hover:underline">Conversor de letras</a> <span>|</span>
+                <a href="#" class="hover:underline">Reloj &amp; Temporizador</a> <span>|</span>
+                <a href="#" class="hover:underline">Ruleta &amp; Echar suertes</a> <span>|</span>
+                <a href="#" class="hover:underline">Juegos</a>
+            </div>
+            <div class="flex flex-wrap justify-center gap-x-3 gap-y-1">
+                <a href="#" class="hover:underline">Notificar un problema</a> <span>|</span>
+                <a href="#" class="hover:underline">Privacidad</a> <span>|</span>
+                <a href="#" class="hover:underline">Términos</a> <span>|</span>
+                <span>🌐 Español</span> <span>|</span>
+                <span>© 2026 PiliApp Replica</span>
+            </div>
+            <div class="opacity-75 tracking-wider uppercase text-[10px]">
+                DESIGNED BY <a href="https://es.piliapp.com" target="_blank" rel="noopener" class="underline hover:text-sky-500">pili.app</a> IN TAIWAN
+            </div>
+        </div>
+    </footer>
 
-    <!-- Pantalla de confirmación de acceso -->
-    <div id="box-container">
-        <div id="face-box"></div>
-        <button id="retry-btn" onclick="reiniciarReconocimiento()">Reintentar</button>
-    </div>
-
-    <!-- Librería face-api.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.js"></script>
-
+    <!-- JavaScript Logic -->
     <script>
+        // --- Internationalization & Strings ---
+        const I18N = {
+            v_starting: "Iniciando la cámara…",
+            v_ok: "Tu cámara funciona correctamente.",
+            v_dark: "La imagen está muy oscura. Más luz frente a ti ayudará.",
+            v_black: "La imagen está en negro — comprueba si hay una tapa de privacidad o algo cubriendo el objetivo.",
+            v_bright: "Tu cámara funciona bien, pero la imagen sale sobreexpuesta. Una ventana luminosa detrás de ti suele ser la causa.",
+            v_noframes: "La cámara se abrió, pero no llega ninguna imagen. Cierra cualquier otra aplicación que pueda estar usándola y vuelve a empezar.",
+            err_denied: "Se bloqueó el acceso a la cámara. Permítelo desde el icono en la barra de direcciones de tu navegador y vuelve a empezar.",
+            err_notfound: "No se encontró ninguna cámara. Conecta una y vuelve a empezar.",
+            err_busy: "Otra aplicación está usando la cámara. Ciérrala y vuelve a empezar.",
+            err_other: "No se pudo iniciar la cámara."
+        };
+
+        // --- DOM Elements ---
         const video = document.getElementById('video');
-        const statusDiv = document.getElementById('status');
-        const progressBar = document.getElementById('progress-bar');
-        const progressContainer = document.getElementById('progress-container');
-        const cameraSetupPanel = document.getElementById('cameraSetupPanel');
-        const cameraSelect = document.getElementById('cameraSelect');
-        const btnRequestPermission = document.getElementById('btnRequestPermission');
-        const container = document.getElementById('container');
-        const boxContainer = document.getElementById('box-container');
-        const faceBox = document.getElementById('face-box');
+        const analysisCanvas = document.getElementById('analysisCanvas');
+        const ctx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const idleState = document.getElementById('idleState');
+        const waitState = document.getElementById('waitState');
+        const liveBadge = document.getElementById('liveBadge');
+        const liveControls = document.getElementById('liveControls');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const mirrorBtn = document.getElementById('mirrorBtn');
+        const devSelect = document.getElementById('devSelect');
+        const preSelectContainer = document.getElementById('preSelectContainer');
+        const preDevSelect = document.getElementById('preDevSelect');
+        
+        const errorBox = document.getElementById('errorBox');
+        const errorMsg = document.getElementById('errorMsg');
+        
+        const verdictBanner = document.getElementById('verdictBanner');
+        const verdictText = document.getElementById('verdictText');
+        
+        const rRes = document.getElementById('rRes');
+        const rFps = document.getElementById('rFps');
+        const rBright = document.getElementById('rBright');
 
-        let faceMatcher = null;
-        let detectionInterval = null;
+        // --- App State ---
         let currentStream = null;
-        let selectedDeviceId = null;
+        let isMirror = false;
+        let animFrameId = null;
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let currentFps = 0;
+        let fpsTimer = performance.now();
 
-        // 1. Paso 1: Al hacer clic en el botón, se solicita el permiso y se listan los dispositivos
-        btnRequestPermission.addEventListener('click', async () => {
-            try {
-                statusDiv.innerText = "Solicitando permiso de cámara...";
-                
-                // Pide el permiso nativo al navegador/Android
-                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                tempStream.getTracks().forEach(track => track.stop());
+        // --- Dark Mode Logic ---
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIconSun = document.getElementById('themeIconSun');
+        const themeIconMoon = document.getElementById('themeIconMoon');
 
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-                cameraSelect.innerHTML = '';
-
-                if (videoDevices.length === 0) {
-                    statusDiv.innerText = "Error: No se encontraron cámaras en el dispositivo.";
-                    return;
-                }
-
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    const label = device.label || `Cámara ${index + 1}`;
-                    option.text = label;
-
-                    if (/back|rear|trasera|environment/i.test(label) && index === 0) {
-                        option.selected = true;
-                    }
-                    cameraSelect.appendChild(option);
-                });
-
-                // Cambiar el botón para que ahora proceda a cargar la IA y arrancar
-                btnRequestPermission.innerText = "Comenzar Reconocimiento Facial";
-                statusDiv.innerText = "Permiso concedido. Selecciona la lente y presiona comenzar.";
-                
-                // Cambiar el evento del botón para el siguiente paso
-                btnRequestPermission.removeEventListener('click', arguments.callee);
-                btnRequestPermission.addEventListener('click', iniciarCargaYReconocimiento);
-
-            } catch (err) {
-                console.error("Permiso denegado o error:", err);
-                statusDiv.innerText = "Error: Debes permitir el acceso a la cámara para continuar.";
+        function initTheme() {
+            const isDark = localStorage.getItem('theme') === 'dark' || 
+                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                themeIconSun.classList.remove('hidden');
+                themeIconMoon.classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeIconSun.classList.add('hidden');
+                themeIconMoon.classList.remove('hidden');
             }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeIconSun.classList.toggle('hidden', !isDark);
+            themeIconMoon.classList.toggle('hidden', isDark);
         });
 
-        // 2. Paso 2: Al presionar comenzar, se guardan los datos y se cargan los modelos de IA
-        async function iniciarCargaYReconocimiento() {
-            selectedDeviceId = cameraSelect.value;
-            if (!selectedDeviceId) {
-                alert("Por favor selecciona una cámara.");
-                return;
-            }
+        initTheme();
 
-            // Ocultar panel de selección y mostrar barra de carga de modelos
-            cameraSetupPanel.style.display = 'none';
-            progressContainer.style.display = 'block';
-            statusDiv.innerText = "Cargando modelos de reconocimiento facial...";
-
-            await loadModelsAndDatabase();
+        // --- Notification Toast ---
+        function showNotification(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-100px]', 'opacity-0');
+            }, 3000);
         }
 
-        function updateProgress(percent, text) {
-            progressBar.style.width = percent + '%';
-            progressBar.innerText = percent + '%';
-            statusDiv.innerText = text;
-        }
+        // --- Camera & MediaDevices Handling ---
 
-        async function loadModelsAndDatabase() {
+        // Pre-enumerate devices if permissions were previously granted
+        async function checkExistingDevices() {
             try {
-                updateProgress(20, "Cargando modelo de detección facial...");
-                await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                
-                updateProgress(45, "Cargando modelo de puntos faciales...");
-                await faceapi.nets.faceLandmark68TinyNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                
-                updateProgress(70, "Cargando modelo de reconocimiento...");
-                await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                
-                updateProgress(90, "Procesando fotos de referencia...");
-                
-                const labeledDescriptors = await Promise.all([
-                    createLabeledFace('Jhoan Barrera', 'https://lh3.googleusercontent.com/a/ACg8ocJjOQPPjy9UEYOI57oqtBLHwl8Y7VgFJGXg8Q3JzYivZoUfEt53=s288-c-no')
-                ]);
-
-                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
-
-                updateProgress(100, "Carga completa");
-                
-                setTimeout(async () => {
-                    progressContainer.style.display = 'none';
-                    container.style.display = 'block';
-                    statusDiv.innerText = "Buscando rostro...";
-                    await abrirCamaraYDetectar(selectedDeviceId);
-                }, 400);
-
-            } catch (err) {
-                console.error("Error inicializando:", err);
-                statusDiv.innerText = "Error: No se pudieron cargar los modelos o la imagen de referencia.";
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    if (videoDevices.length > 0 && videoDevices[0].label) {
+                        populateDeviceDropdowns(videoDevices);
+                        preSelectContainer.classList.remove('hidden');
+                    }
+                }
+            } catch (e) {
+                console.log("Pre-enumeration skipped:", e);
             }
         }
 
-        async function createLabeledFace(name, imageUrl) {
-            const img = await faceapi.fetchImage(imageUrl);
-            const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true).withFaceDescriptor();
-            
-            if (!detection) {
-                throw new Error(`No se pudo detectar un rostro en la imagen de referencia para: ${name}`);
-            }
-            
-            return new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]);
+        function populateDeviceDropdowns(devices) {
+            devSelect.innerHTML = '';
+            preDevSelect.innerHTML = '';
+
+            devices.forEach((device, idx) => {
+                const label = device.label || `Cámara ${idx + 1}`;
+                
+                const opt1 = document.createElement('option');
+                opt1.value = device.deviceId;
+                opt1.text = label;
+                devSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = device.deviceId;
+                opt2.text = label;
+                preDevSelect.appendChild(opt2);
+            });
         }
 
-        async function abrirCamaraYDetectar(deviceId) {
+        async function startCamera(targetDeviceId = null) {
+            hideError();
+            idleState.classList.add('hidden');
+            waitState.classList.remove('hidden');
+            waitState.classList.add('flex');
+
             const constraints = {
-                video: { deviceId: { exact: deviceId } }
+                video: targetDeviceId ? { deviceId: { exact: targetDeviceId } } : { facingMode: 'user' },
+                audio: false
             };
 
             try {
+                if (currentStream) {
+                    stopCameraTracks();
+                }
+
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = currentStream;
-                iniciarDeteccionFacial();
+                
+                await video.play();
+
+                // Enumerate devices again after user granted permission to get full device labels
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                populateDeviceDropdowns(videoDevices);
+
+                // Set active device selection in dropdown
+                const activeTrack = currentStream.getVideoTracks()[0];
+                const settings = activeTrack.getSettings();
+                if (settings.deviceId) {
+                    devSelect.value = settings.deviceId;
+                }
+
+                // UI State Update for Live Video
+                waitState.classList.add('hidden');
+                waitState.classList.remove('flex');
+                video.classList.remove('hidden');
+                liveBadge.classList.remove('hidden');
+                liveBadge.classList.add('flex');
+                liveControls.classList.remove('hidden');
+
+                // Start Live Analysis Cycle
+                startAnalysisLoop();
+
             } catch (err) {
-                console.warn("Error con deviceId exacto, intentando fallback genérico...", err);
-                try {
-                    currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                    video.srcObject = currentStream;
-                    iniciarDeteccionFacial();
-                } catch (fallbackErr) {
-                    statusDiv.innerText = "Error: No se pudo abrir la cámara seleccionada.";
-                    console.error(fallbackErr);
+                console.error("Camera access error:", err);
+                waitState.classList.add('hidden');
+                waitState.classList.remove('flex');
+                idleState.classList.remove('hidden');
+
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    showError(I18N.err_denied);
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    showError(I18N.err_notfound);
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    showError(I18N.err_busy);
+                } else {
+                    showError(I18N.err_other);
                 }
             }
         }
 
-        // 3. Paso 3: Bucle de detección de rostros con face-api.js
-        function iniciarDeteccionFacial() {
-            video.addEventListener('loadedmetadata', () => {
-                video.play();
-            });
+        function stopCamera() {
+            stopCameraTracks();
 
-            const canvas = faceapi.createCanvasFromMedia(video);
-            container.append(canvas);
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
 
-            const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
-            faceapi.matchDimensions(canvas, displaySize);
+            video.pause();
+            video.srcObject = null;
 
-            detectionInterval = setInterval(async () => {
-                if (video.paused || video.ended) return;
+            // UI Reset
+            video.classList.add('hidden');
+            liveBadge.classList.add('hidden');
+            liveBadge.classList.remove('flex');
+            liveControls.classList.add('hidden');
+            idleState.classList.remove('hidden');
 
-                const detections = await faceapi.detectAllFaces(
-                    video, 
-                    new faceapi.TinyFaceDetectorOptions()
-                ).withFaceLandmarks(true).withFaceDescriptors();
-                
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                
-                const context = canvas.getContext('2d');
-                context.clearRect(0, 0, canvas.width, canvas.height);
-                
-                if (resizedDetections.length > 0) {
-                    const detection = resizedDetections[0];
-                    const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-                    
-                    if (bestMatch.label !== 'unknown') {
-                        // Detener la detección
-                        clearInterval(detectionInterval);
-                        detectionInterval = null;
+            rRes.innerText = '—';
+            rFps.innerText = '—';
+            rBright.innerText = '—';
+        }
+
+        function stopCameraTracks() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        function showError(msg) {
+            errorMsg.innerText = msg;
+            errorBox.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorBox.classList.add('hidden');
+        }
+
+        // --- Real-time Metrics & Image Analysis Loop ---
+        function startAnalysisLoop() {
+            frameCount = 0;
+            fpsTimer = performance.now();
+            
+            function processFrame(now) {
+                if (!currentStream || video.paused || video.ended) return;
+
+                // 1. Measure FPS
+                frameCount++;
+                if (now - fpsTimer >= 1000) {
+                    currentFps = Math.round((frameCount * 1000) / (now - fpsTimer));
+                    rFps.innerText = `${currentFps} FPS`;
+                    frameCount = 0;
+                    fpsTimer = now;
+                }
+
+                // 2. Measure Resolution
+                const width = video.videoWidth;
+                const height = video.videoHeight;
+                if (width && height) {
+                    rRes.innerText = `${width}×${height}`;
+
+                    // 3. Measure Brightness (every ~10 frames for efficiency)
+                    if (frameCount % 5 === 0) {
+                        analysisCanvas.width = 160; // downsample for performance
+                        analysisCanvas.height = 120;
+                        ctx.drawImage(video, 0, 0, 160, 120);
                         
-                        // Detener el stream de la cámara y ocultar el video
-                        video.pause();
-                        if (currentStream) {
-                            currentStream.getTracks().forEach(track => track.stop());
+                        try {
+                            const imageData = ctx.getImageData(0, 0, 160, 120);
+                            const data = imageData.data;
+                            let sumBrightness = 0;
+
+                            for (let i = 0; i < data.length; i += 4) {
+                                // Standard ITU-R BT.601 perceptual luminance formula
+                                const r = data[i];
+                                const g = data[i + 1];
+                                const b = data[i + 2];
+                                const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+                                sumBrightness += brightness;
+                            }
+
+                            const avgBrightness = Math.round(sumBrightness / (data.length / 4));
+                            const brightnessPct = Math.round((avgBrightness / 255) * 100);
+                            rBright.innerText = `${brightnessPct}%`;
+
+                            // Update Verdict Based on Live Analysis
+                            updateVerdict(brightnessPct, currentFps);
+
+                        } catch (e) {
+                            console.warn("Analysis canvas error:", e);
                         }
-                        container.style.display = 'none';
-                        statusDiv.style.display = 'none';
-                        
-                        // Mostrar resultado de acceso
-                        boxContainer.style.display = 'flex';
-                        
-                        const now = new Date();
-                        const dateString = now.toLocaleDateString();
-                        const timeString = now.toLocaleTimeString();
-                        
-                        faceBox.innerHTML = `
-                            <div class="success-title">ACCESO REGISTRADO</div>
-                            👤 ${bestMatch.label}<br>
-                            📅 ${dateString}<br>
-                            ⏰ ${timeString}
-                        `;
                     }
                 }
-            }, 100);
+
+                animFrameId = requestAnimationFrame(processFrame);
+            }
+
+            animFrameId = requestAnimationFrame(processFrame);
         }
 
-        function reiniciarReconocimiento() {
-            window.location.reload();
+        // --- Dynamic Verdict Engine ---
+        function updateVerdict(brightness, fps) {
+            verdictBanner.className = "mt-3 p-3 rounded-lg text-xs font-semibold flex items-center gap-2 border transition-all ";
+
+            if (fps === 0 && frameCount > 30) {
+                verdictBanner.classList.add('bg-amber-950/40', 'border-amber-600/40', 'text-amber-300');
+                verdictText.innerText = I18N.v_noframes;
+            } else if (brightness < 8) {
+                verdictBanner.classList.add('bg-slate-800', 'border-slate-600', 'text-slate-300');
+                verdictText.innerText = I18N.v_black;
+            } else if (brightness < 22) {
+                verdictBanner.classList.add('bg-amber-950/40', 'border-amber-600/40', 'text-amber-300');
+                verdictText.innerText = I18N.v_dark;
+            } else if (brightness > 88) {
+                verdictBanner.classList.add('bg-amber-950/40', 'border-amber-600/40', 'text-amber-300');
+                verdictText.innerText = I18N.v_bright;
+            } else {
+                verdictBanner.classList.add('bg-emerald-950/40', 'border-emerald-600/40', 'text-emerald-300');
+                verdictText.innerText = I18N.v_ok;
+            }
         }
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', () => {
+            const selectedDev = preDevSelect.value || null;
+            startCamera(selectedDev);
+        });
+
+        stopBtn.addEventListener('click', stopCamera);
+
+        mirrorBtn.addEventListener('click', () => {
+            isMirror = !isMirror;
+            video.classList.toggle('mirror-mode', isMirror);
+            mirrorBtn.classList.toggle('bg-sky-600/20', isMirror);
+            mirrorBtn.classList.toggle('border-sky-500/50', isMirror);
+            mirrorBtn.classList.toggle('text-sky-300', isMirror);
+            showNotification(isMirror ? 'Modo Espejo activado' : 'Modo Vista Real (sin espejo)');
+        });
+
+        devSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                startCamera(e.target.value);
+            }
+        });
+
+        // --- Modal Simulation for Other Hardware Tests ---
+        function openTestModal(testType) {
+            const modal = document.getElementById('testModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.innerText = `Prueba de ${testType}`;
+
+            if (testType === 'Teclado') {
+                modalBody.innerHTML = `
+                    <p class="mb-3">Presiona cualquier tecla de tu dispositivo para verificar su funcionamiento:</p>
+                    <div id="keyDisplay" class="text-lg font-mono font-bold bg-slate-100 dark:bg-slate-800 p-4 rounded-xl text-sky-500 border border-slate-300 dark:border-slate-700 w-full text-center">
+                        Esperando pulsación...
+                    </div>
+                `;
+                window.onkeydown = (e) => {
+                    const kd = document.getElementById('keyDisplay');
+                    if (kd) kd.innerText = `Tecla: "${e.key}" (Code: ${e.code})`;
+                };
+            } else if (testType === 'Ratón') {
+                modalBody.innerHTML = `
+                    <p class="mb-3">Mueve el ratón o haz clic dentro de la caja:</p>
+                    <div id="mouseBox" class="w-full h-24 bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-sky-500 rounded-xl flex items-center justify-center font-mono text-xs text-sky-400 cursor-crosshair">
+                        Haz clic o mueve el cursor aquí
+                    </div>
+                `;
+                setTimeout(() => {
+                    const mb = document.getElementById('mouseBox');
+                    if (mb) {
+                        mb.onmousemove = (e) => mb.innerText = `X: ${e.offsetX}, Y: ${e.offsetY}`;
+                        mb.onmousedown = (e) => mb.innerText = `¡Clic detectado! Botón: ${e.button}`;
+                    }
+                }, 100);
+            } else if (testType === 'Micrófono') {
+                modalBody.innerHTML = `
+                    <i class="bi bi-mic-fill text-4xl text-sky-500 mb-3 animate-pulse"></i>
+                    <p>Detectando audio del sistema...</p>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-3 rounded-full mt-3 overflow-hidden">
+                        <div class="bg-sky-500 h-full w-2/3 animate-pulse"></div>
+                    </div>
+                `;
+            } else if (testType === 'Altavoces') {
+                modalBody.innerHTML = `
+                    <p class="mb-4">Haz clic para reproducir un tono de prueba de audio:</p>
+                    <button onclick="playTestTone()" class="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow hover:bg-sky-500 flex items-center gap-2">
+                        <i class="bi bi-volume-up-fill"></i> Reproducir sonido de prueba
+                    </button>
+                `;
+            } else if (testType === 'Pantalla') {
+                modalBody.innerHTML = `
+                    <p class="mb-3">Comprueba si tienes píxeles muertos alternando el fondo:</p>
+                    <div id="screenTestBox" class="w-full h-20 bg-red-500 rounded-lg cursor-pointer flex items-center justify-center text-white text-xs font-bold" onclick="cycleScreenColor(this)">
+                        Haz clic para cambiar color (Rojo/Verde/Azul/Blanco)
+                    </div>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeTestModal() {
+            const modal = document.getElementById('testModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            window.onkeydown = null;
+        }
+
+        function playTestTone() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, ctx.currentTime); // A4 Note
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.8);
+                showNotification('Tono de 440 Hz reproducido');
+            } catch (e) {
+                alert('AudioContext no soportado en este navegador');
+            }
+        }
+
+        function cycleScreenColor(el) {
+            const colors = ['bg-red-500', 'bg-green-500', 'bg-blue-500', 'bg-white', 'bg-black'];
+            let currentIdx = colors.findIndex(c => el.classList.contains(c));
+            el.classList.remove(colors[currentIdx]);
+            let nextIdx = (currentIdx + 1) % colors.length;
+            el.classList.add(colors[nextIdx]);
+        }
+
+        function switchTestTab(type) {
+            openTestModal(type.charAt(0).toUpperCase() + type.slice(1));
+        }
+
+        // On Load initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            checkExistingDevices();
+        });
     </script>
 </body>
 </html>
