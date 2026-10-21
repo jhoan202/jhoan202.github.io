@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Visor de Cámara - Test En Vivo</title>
+    <title>Visor de Cámara - Reconocimiento Facial En Vivo</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,6 +27,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <!-- face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
 
     <style>
         body {
@@ -71,11 +74,22 @@
             50% { opacity: 0.3; transform: scale(1.2); }
             100% { opacity: 1; transform: scale(1); }
         }
+
+        /* Glow animation for detected badge */
+        .detection-card-glow {
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.35);
+            animation: borderGlow 2s infinite alternate;
+        }
+
+        @keyframes borderGlow {
+            0% { border-color: rgba(34, 197, 94, 0.6); }
+            100% { border-color: rgba(34, 197, 94, 1); }
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-3 sm:p-6 overflow-hidden">
 
-    <!-- Container Only (No headers, footers, or sidebars) -->
+    <!-- Container Only -->
     <main class="w-full max-w-4xl mx-auto">
         
         <!-- Main Webcam Card -->
@@ -87,13 +101,48 @@
                 <!-- Video Player -->
                 <video id="video" playsinline muted class="w-full h-full object-contain absolute inset-0 hidden transition-transform duration-200"></video>
 
-                <!-- Offscreen Canvas for Pixel Math -->
+                <!-- Overlay Canvas for Face Bounding Boxes & Landmarks -->
+                <canvas id="overlayCanvas" class="absolute inset-0 pointer-events-none w-full h-full object-contain z-10 hidden"></canvas>
+
+                <!-- Offscreen Canvas for Pixel Brightness Analysis -->
                 <canvas id="analysisCanvas" class="hidden"></canvas>
 
                 <!-- Live Floating Badge -->
                 <div id="liveBadge" class="absolute top-4 left-4 z-20 bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-white text-xs px-3 py-1.5 rounded-full hidden items-center gap-2 shadow-lg">
                     <span class="live-dot"></span>
                     <span class="font-bold tracking-widest uppercase text-[10px] text-emerald-400">EN VIVO</span>
+                </div>
+
+                <!-- AI Status Floating Badge -->
+                <div id="aiBadge" class="absolute top-4 right-4 z-20 bg-slate-900/80 backdrop-blur-md border border-slate-700/60 text-white text-xs px-3 py-1.5 rounded-full hidden items-center gap-2 shadow-lg">
+                    <i class="bi bi-person-bounding-box text-sky-400"></i>
+                    <span id="aiBadgeText" class="font-medium text-xs text-slate-200">Rostros: 0</span>
+                </div>
+
+                <!-- SUPERPOSED DETECTION CARD OVERLAY (NOMBRE, FECHA Y HORA) -->
+                <div id="detectionOverlay" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 hidden transition-all duration-300 transform scale-95 opacity-0">
+                    <div class="bg-slate-950/90 backdrop-blur-xl border border-emerald-500/80 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-4 border-2 detection-card-glow min-w-[300px]">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shrink-0">
+                            <i class="bi bi-person-check-fill text-2xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">ACCESO CONFIRMADO</span>
+                                <span id="detectedSimilarity" class="text-[10px] font-mono text-slate-400">100% match</span>
+                            </div>
+                            <h4 id="detectedName" class="text-base font-bold text-white mt-0.5 leading-tight">Jhoan Barrera</h4>
+                            <div class="flex items-center gap-3 text-xs text-slate-300 font-mono mt-1">
+                                <span class="flex items-center gap-1">
+                                    <i class="bi bi-calendar3 text-emerald-400 text-[11px]"></i>
+                                    <span id="detectedDate">--/--/----</span>
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <i class="bi bi-clock-fill text-emerald-400 text-[11px]"></i>
+                                    <span id="detectedTime">--:--:--</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- STATE 1: IDLE -->
@@ -104,7 +153,7 @@
 
                     <!-- Camera pre-selector dropdown -->
                     <div id="preSelectContainer" class="w-full mb-4 hidden">
-                        <select id="preDevSelect" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-sky-500 transition-colors">
+                        <select id="preDevSelect" aria-label="Seleccionar Cámara Previa" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:border-sky-500 transition-colors">
                         </select>
                     </div>
 
@@ -124,13 +173,19 @@
                     </div>
                 </div>
 
-                <!-- STATE 2: WAITING FOR PERMISSION -->
-                <div id="waitState" class="hidden flex-col items-center justify-center text-center max-w-xs z-10 p-6">
+                <!-- STATE 2: LOADING MODELS / PERMISSION -->
+                <div id="waitState" class="hidden flex-col items-center justify-center text-center max-w-sm z-10 p-6">
                     <div class="spinner mb-5"></div>
-                    <h3 class="text-base font-bold text-white mb-1.5">Esperando permiso…</h3>
-                    <p class="text-xs text-slate-400 leading-relaxed">
-                        Acepta el diálogo de permiso cerca de la barra de navegación para encender la cámara.
+                    <h3 id="waitTitle" class="text-base font-bold text-white mb-1.5">Cargando inteligencia artificial…</h3>
+                    <p id="waitSub" class="text-xs text-slate-400 leading-relaxed mb-4">
+                        Descargando modelos de detección, landmarks y reconocimiento facial...
                     </p>
+                    
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-900 border border-slate-800 rounded-full h-3 overflow-hidden p-0.5">
+                        <div id="modelProgress" class="bg-sky-500 h-full rounded-full transition-all duration-300 w-0"></div>
+                    </div>
+                    <span id="modelProgressText" class="text-[11px] font-mono text-sky-400 mt-2 block">0%</span>
                 </div>
             </div>
 
@@ -145,6 +200,19 @@
                         <select id="devSelect" aria-label="Seleccionar cámara" class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2.5 outline-none focus:border-sky-500 transition-colors">
                             <option value="">Cargando cámaras...</option>
                         </select>
+                    </div>
+
+                    <!-- AI Mode Options -->
+                    <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 border border-slate-800 rounded-xl">
+                        <label class="text-xs text-slate-300 flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="toggleFaceDetect" checked class="rounded bg-slate-900 border-slate-700 text-sky-600 focus:ring-0 focus:ring-offset-0">
+                            <span>Detección Facial</span>
+                        </label>
+                        <span class="text-slate-700">|</span>
+                        <label class="text-xs text-slate-300 flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="toggleLandmarks" checked class="rounded bg-slate-900 border-slate-700 text-sky-600 focus:ring-0 focus:ring-offset-0">
+                            <span>Puntos</span>
+                        </label>
                     </div>
 
                     <!-- Actions -->
@@ -169,12 +237,13 @@
                         <div><span class="text-slate-500 uppercase text-[10px] block">Res</span><span id="rRes" class="text-slate-200 font-bold">—</span></div>
                         <div><span class="text-slate-500 uppercase text-[10px] block">FPS</span><span id="rFps" class="text-slate-200 font-bold">—</span></div>
                         <div><span class="text-slate-500 uppercase text-[10px] block">Brillo</span><span id="rBright" class="text-slate-200 font-bold">—</span></div>
+                        <div><span class="text-slate-500 uppercase text-[10px] block">Rostros</span><span id="rFaces" class="text-sky-400 font-bold">0</span></div>
                     </div>
 
                     <!-- Verdict Indicator -->
                     <div id="verdictBanner" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border bg-emerald-950/40 border-emerald-600/40 text-emerald-300">
                         <i class="bi bi-check-circle-fill text-emerald-400"></i>
-                        <span id="verdictText">Cámara operativa</span>
+                        <span id="verdictText">Cámara y detección activas</span>
                     </div>
                 </div>
             </div>
@@ -184,7 +253,12 @@
 
     <!-- JavaScript Execution -->
     <script>
-        // Internationalization / Messages
+        // Model URLs (Using fast jsDelivr CDN)
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+        const REFERENCE_IMAGE_URL = 'https://lh3.googleusercontent.com/a/ACg8ocJjOQPPjy9UEYOI57oqtBLHwl8Y7VgFJGXg8Q3JzYivZoUfEt53=s288-c-no';
+        const TARGET_NAME = 'Jhoan Barrera';
+
+        // Error Translations
         const ERRORS = {
             denied: "Permiso bloqueado. Habilita la cámara en la barra del navegador.",
             notfound: "No se encontró ninguna cámara conectada.",
@@ -192,14 +266,22 @@
             other: "No se pudo iniciar el dispositivo de video."
         };
 
-        // Elements
+        // DOM Elements
         const video = document.getElementById('video');
+        const overlayCanvas = document.getElementById('overlayCanvas');
         const analysisCanvas = document.getElementById('analysisCanvas');
-        const ctx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+        const ctxAnalysis = analysisCanvas.getContext('2d', { willReadFrequently: true });
         
         const idleState = document.getElementById('idleState');
         const waitState = document.getElementById('waitState');
+        const waitTitle = document.getElementById('waitTitle');
+        const waitSub = document.getElementById('waitSub');
+        const modelProgress = document.getElementById('modelProgress');
+        const modelProgressText = document.getElementById('modelProgressText');
+
         const liveBadge = document.getElementById('liveBadge');
+        const aiBadge = document.getElementById('aiBadge');
+        const aiBadgeText = document.getElementById('aiBadgeText');
         const liveControls = document.getElementById('liveControls');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
@@ -208,6 +290,9 @@
         const preSelectContainer = document.getElementById('preSelectContainer');
         const preDevSelect = document.getElementById('preDevSelect');
         
+        const toggleFaceDetect = document.getElementById('toggleFaceDetect');
+        const toggleLandmarks = document.getElementById('toggleLandmarks');
+
         const errorBox = document.getElementById('errorBox');
         const errorMsg = document.getElementById('errorMsg');
         
@@ -217,6 +302,14 @@
         const rRes = document.getElementById('rRes');
         const rFps = document.getElementById('rFps');
         const rBright = document.getElementById('rBright');
+        const rFaces = document.getElementById('rFaces');
+
+        // Detection Overlay Elements
+        const detectionOverlay = document.getElementById('detectionOverlay');
+        const detectedName = document.getElementById('detectedName');
+        const detectedSimilarity = document.getElementById('detectedSimilarity');
+        const detectedDate = document.getElementById('detectedDate');
+        const detectedTime = document.getElementById('detectedTime');
 
         // Logic State
         let currentStream = null;
@@ -225,8 +318,12 @@
         let frameCount = 0;
         let currentFps = 0;
         let fpsTimer = performance.now();
+        let modelsLoaded = false;
+        let isDetecting = false;
+        let faceMatcher = null;
+        let lastDetectionTime = 0;
 
-        // Check if cameras can be pre-listed
+        // Check pre-enumerated cameras
         async function checkPreDevices() {
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -259,11 +356,81 @@
             });
         }
 
+        // Load face-api AI models and Reference Image Descriptors
+        async function loadAiModels() {
+            if (modelsLoaded) return true;
+
+            try {
+                updateProgress(15, "Cargando detector facial ligero...");
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                
+                updateProgress(40, "Cargando puntos de referencia (landmarks)...");
+                await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+                
+                updateProgress(65, "Cargando modelo de reconocimiento...");
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                
+                updateProgress(85, `Procesando foto de referencia de ${TARGET_NAME}...`);
+                const labeledDescriptors = await createLabeledDescriptors();
+
+                if (labeledDescriptors) {
+                    faceMatcher = new faceapi.FaceMatcher([labeledDescriptors], 0.6);
+                }
+
+                updateProgress(100, "Modelos y base de datos cargados.");
+                modelsLoaded = true;
+                return true;
+            } catch (err) {
+                console.error("Error al cargar modelos AI:", err);
+                showError("No se pudieron cargar los modelos de reconocimiento facial.");
+                return false;
+            }
+        }
+
+        async function createLabeledDescriptors() {
+            try {
+                const img = await faceapi.fetchImage(REFERENCE_IMAGE_URL);
+                const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+                                                .withFaceLandmarks(true)
+                                                .withFaceDescriptor();
+                
+                if (!detection) {
+                    console.warn("No se pudo detectar un rostro claro en la imagen de referencia.");
+                    return null;
+                }
+                return new faceapi.LabeledFaceDescriptors(TARGET_NAME, [detection.descriptor]);
+            } catch (e) {
+                console.error("Error cargando la foto de referencia:", e);
+                return null;
+            }
+        }
+
+        function updateProgress(percent, text) {
+            modelProgress.style.width = percent + '%';
+            modelProgressText.innerText = percent + '%';
+            if (text) waitSub.innerText = text;
+        }
+
         async function startCamera(deviceId = null) {
             hideError();
             idleState.classList.add('hidden');
             waitState.classList.remove('hidden');
             waitState.classList.add('flex');
+
+            waitTitle.innerText = "Cargando modelos de IA...";
+            updateProgress(5, "Iniciando descarga de modelos...");
+
+            // Load AI Models
+            const ok = await loadAiModels();
+            if (!ok) {
+                waitState.classList.add('hidden');
+                waitState.classList.remove('flex');
+                idleState.classList.remove('hidden');
+                return;
+            }
+
+            waitTitle.innerText = "Esperando permiso de cámara...";
+            waitSub.innerText = "Acepta el diálogo de permiso en tu navegador para encender la cámara.";
 
             const constraints = {
                 video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' },
@@ -292,12 +459,16 @@
                 // UI Activation
                 waitState.classList.add('hidden');
                 waitState.classList.remove('flex');
+                
                 video.classList.remove('hidden');
+                overlayCanvas.classList.remove('hidden');
                 liveBadge.classList.remove('hidden');
                 liveBadge.classList.add('flex');
+                aiBadge.classList.remove('hidden');
+                aiBadge.classList.add('flex');
                 liveControls.classList.remove('hidden');
 
-                startAnalysis();
+                startAnalysisAndDetection();
 
             } catch (err) {
                 console.error(err);
@@ -330,14 +501,19 @@
 
             // Reset UI
             video.classList.add('hidden');
+            overlayCanvas.classList.add('hidden');
             liveBadge.classList.add('hidden');
             liveBadge.classList.remove('flex');
+            aiBadge.classList.add('hidden');
+            aiBadge.classList.remove('flex');
             liveControls.classList.add('hidden');
+            hideDetectionOverlay();
             idleState.classList.remove('hidden');
 
             rRes.innerText = '—';
             rFps.innerText = '—';
             rBright.innerText = '—';
+            rFaces.innerText = '0';
         }
 
         function stopTracks() {
@@ -356,12 +532,41 @@
             errorBox.classList.add('hidden');
         }
 
-        // Live Performance & Frame Analysis
-        function startAnalysis() {
+        function showDetectionOverlay(name, distance) {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const matchScore = Math.max(0, Math.round((1 - distance) * 100));
+
+            detectedName.innerText = name;
+            detectedSimilarity.innerText = `${matchScore}% coincidencia`;
+            detectedDate.innerText = dateStr;
+            detectedTime.innerText = timeStr;
+
+            detectionOverlay.classList.remove('hidden');
+            setTimeout(() => {
+                detectionOverlay.classList.remove('scale-95', 'opacity-0');
+                detectionOverlay.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            lastDetectionTime = Date.now();
+        }
+
+        function hideDetectionOverlay() {
+            detectionOverlay.classList.remove('scale-100', 'opacity-100');
+            detectionOverlay.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                detectionOverlay.classList.add('hidden');
+            }, 300);
+        }
+
+        // Live Frame Loop: Pixel Math & Face Detection
+        function startAnalysisAndDetection() {
             frameCount = 0;
             fpsTimer = performance.now();
             
-            function process(now) {
+            async function process(now) {
                 if (!currentStream || video.paused || video.ended) return;
 
                 // FPS Calc
@@ -373,19 +578,20 @@
                     fpsTimer = now;
                 }
 
-                // Resolution & Brightness Calc
                 const w = video.videoWidth;
                 const h = video.videoHeight;
+
                 if (w && h) {
                     rRes.innerText = `${w}x${h}`;
 
+                    // Brightness Analysis (Every 6 frames)
                     if (frameCount % 6 === 0) {
                         analysisCanvas.width = 120;
                         analysisCanvas.height = 90;
-                        ctx.drawImage(video, 0, 0, 120, 90);
+                        ctxAnalysis.drawImage(video, 0, 0, 120, 90);
                         
                         try {
-                            const data = ctx.getImageData(0, 0, 120, 90).data;
+                            const data = ctxAnalysis.getImageData(0, 0, 120, 90).data;
                             let sum = 0;
 
                             for (let i = 0; i < data.length; i += 4) {
@@ -398,6 +604,93 @@
 
                             updateDiagnosis(brightnessPct);
                         } catch (e) {}
+                    }
+
+                    // Face-api Detection Loop
+                    if (toggleFaceDetect.checked && modelsLoaded && !isDetecting && frameCount % 2 === 0) {
+                        isDetecting = true;
+                        
+                        const displaySize = { width: w, height: h };
+                        faceapi.matchDimensions(overlayCanvas, displaySize);
+
+                        try {
+                            const detections = await faceapi.detectAllFaces(
+                                video, 
+                                new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+                            ).withFaceLandmarks(true).withFaceDescriptors();
+
+                            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                            
+                            const ctxOverlay = overlayCanvas.getContext('2d');
+                            ctxOverlay.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+                            let matchedPersonDetected = false;
+
+                            if (isMirror) {
+                                ctxOverlay.save();
+                                ctxOverlay.translate(overlayCanvas.width, 0);
+                                ctxOverlay.scale(-1, 1);
+                            }
+
+                            resizedDetections.forEach(det => {
+                                const box = det.detection.box;
+                                let label = "Rostro Desconocido";
+                                let strokeColor = "#38bdf8";
+                                let fillColor = "#0284c7";
+
+                                if (faceMatcher && det.descriptor) {
+                                    const match = faceMatcher.findBestMatch(det.descriptor);
+                                    if (match.label !== 'unknown') {
+                                        label = match.label;
+                                        strokeColor = "#22c55e"; // Green for match
+                                        fillColor = "#15803d";
+                                        matchedPersonDetected = true;
+                                        showDetectionOverlay(match.label, match.distance);
+                                    }
+                                }
+
+                                // Bounding Box
+                                ctxOverlay.strokeStyle = strokeColor;
+                                ctxOverlay.lineWidth = 3;
+                                ctxOverlay.strokeRect(box.x, box.y, box.width, box.height);
+
+                                // Label Header
+                                ctxOverlay.fillStyle = fillColor;
+                                ctxOverlay.fillRect(box.x, box.y > 22 ? box.y - 22 : box.y, box.width, 22);
+                                ctxOverlay.fillStyle = '#ffffff';
+                                ctxOverlay.font = 'bold 12px Inter, sans-serif';
+                                ctxOverlay.fillText(label, box.x + 6, (box.y > 22 ? box.y - 6 : box.y + 15));
+                            });
+
+                            // Draw Landmarks if enabled
+                            if (toggleLandmarks.checked) {
+                                faceapi.draw.drawFaceLandmarks(overlayCanvas, resizedDetections);
+                            }
+
+                            if (isMirror) {
+                                ctxOverlay.restore();
+                            }
+
+                            const faceCount = resizedDetections.length;
+                            rFaces.innerText = `${faceCount}`;
+                            aiBadgeText.innerText = `Rostros: ${faceCount}`;
+
+                            // Auto-hide overlay badge if person leaves for > 2 seconds
+                            if (!matchedPersonDetected && (Date.now() - lastDetectionTime > 2000)) {
+                                hideDetectionOverlay();
+                            }
+
+                        } catch (err) {
+                            console.error(err);
+                        } finally {
+                            isDetecting = false;
+                        }
+                    } else if (!toggleFaceDetect.checked) {
+                        const ctxOverlay = overlayCanvas.getContext('2d');
+                        ctxOverlay.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                        rFaces.innerText = 'Off';
+                        aiBadgeText.innerText = 'AI Apagada';
+                        hideDetectionOverlay();
                     }
                 }
 
@@ -419,7 +712,7 @@
                 verdictText.innerText = "Imagen sobreexpuesta";
             } else {
                 verdictBanner.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border bg-emerald-950/40 border-emerald-600/40 text-emerald-300";
-                verdictText.innerText = "Imagen y brillo óptimos";
+                verdictText.innerText = "Cámara y IA operativas";
             }
         }
 
