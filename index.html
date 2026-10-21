@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconocimiento Facial con Barra de Progreso</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        h2 {
+            margin-bottom: 5px;
+        }
+        #status {
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #ffa500;
+            text-align: center;
+        }
+        #progress-container {
+            width: 300px;
+            background-color: #333;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4CAF50;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            transition: width 0.3s ease;
+        }
+        #container {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            width: 640px;
+            height: 480px;
+            display: none;
+        }
+        video, canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #box-container {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            display: none;
+            position: relative;
+            background-color: #1a1a1a;
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.2);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        #face-box {
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: bold;
+            line-height: 1.6;
+        }
+        .success-title {
+            color: #00ff00;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+        /* Estilo para el botón de Reintentar */
+        #retry-btn {
+            margin-top: 25px;
+            padding: 10px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #retry-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Reconocimiento Facial</h2>
+    <div id="status">Iniciando sistema...</div>
+
+    <!-- Barra de progreso -->
+    <div id="progress-container">
+        <div id="progress-bar">0%</div>
+    </div>
+
+    <div id="container">
+        <video id="video" autoplay muted width="640" height="480"></video>
+    </div>
+
+    <div id="box-container">
+        <div id="face-box"></div>
+        <button id="retry-btn" onclick="reiniciarReconocimiento()">Reintentar</button>
+    </div>
+
+    <!-- Cargar face-api.js desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.js"></script>
+
+    <script>
+        const video = document.getElementById('video');
+        const statusDiv = document.getElementById('status');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const container = document.getElementById('container');
+        const boxContainer = document.getElementById('box-container');
+        const faceBox = document.getElementById('face-box');
+
+        let faceMatcher = null;
+        let detectionInterval = null;
+
+        function updateProgress(percent, text) {
+            progressBar.style.width = percent + '%';
+            progressBar.innerText = percent + '%';
+            statusDiv.innerText = text;
+        }
+
+        function startVideo() {
+            statusDiv.innerText = "Abriendo cámara web...";
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    progressContainer.style.display = 'none';
+                    container.style.display = 'block';
+                    statusDiv.innerText = "Buscando rostro...";
+                })
+                .catch((err) => {
+                    console.error("Error al acceder a la cámara: ", err);
+                    statusDiv.innerText = "Error: No se pudo acceder a la cámara.";
+                });
+        }
+
+        async function loadModelsAndDatabase() {
+            try {
+                updateProgress(20, "Cargando modelo de detección facial...");
+                await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                
+                updateProgress(45, "Cargando modelo de puntos faciales...");
+                await faceapi.nets.faceLandmark68TinyNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                
+                updateProgress(70, "Cargando modelo de reconocimiento...");
+                await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                
+                updateProgress(90, "Procesando fotos de referencia ...");
+                
+                const labeledDescriptors = await Promise.all([
+                    createLabeledFace('Jhoan Barrera', 'https://lh3.googleusercontent.com/a/ACg8ocJjOQPPjy9UEYOI57oqtBLHwl8Y7VgFJGXg8Q3JzYivZoUfEt53=s288-c-no')
+                ]);
+
+                faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+                updateProgress(100, "¡Carga completa!");
+                
+                setTimeout(() => {
+                    startVideo();
+                }, 500);
+
+            } catch (err) {
+                console.error("Error inicializando:", err);
+                statusDiv.innerText = "Error: No se pudo cargar la imagen de referencia.";
+            }
+        }
+
+        async function createLabeledFace(name, imageUrl) {
+            const img = await faceapi.fetchImage(imageUrl);
+            const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true).withFaceDescriptor();
+            
+            if (!detection) {
+                throw new Error(`No se pudo detectar un rostro en la imagen de referencia para: ${name}`);
+            }
+            
+            return new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]);
+        }
+
+        loadModelsAndDatabase();
+
+        video.addEventListener('play', () => {
+            const canvas = faceapi.createCanvasFromMedia(video);
+            container.append(canvas);
+
+            const displaySize = { width: video.width, height: video.height };
+            faceapi.matchDimensions(canvas, displaySize);
+
+            detectionInterval = setInterval(async () => {
+                const detections = await faceapi.detectAllFaces(
+                    video, 
+                    new faceapi.TinyFaceDetectorOptions()
+                ).withFaceLandmarks(true).withFaceDescriptors();
+                
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                
+                const context = canvas.getContext('2d');
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (resizedDetections.length > 0) {
+                    const detection = resizedDetections[0];
+                    const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+                    
+                    if (bestMatch.label !== 'unknown') {
+                        // 1. Detener el bucle de detección
+                        clearInterval(detectionInterval);
+                        
+                        // 2. Apagar la cámara y ocultar video
+                        video.pause();
+                        if (video.srcObject) {
+                            video.srcObject.getTracks().forEach(track => track.stop());
+                        }
+                        container.style.display = 'none';
+                        statusDiv.style.display = 'none';
+                        
+                        // 3. Mostrar el recuadro con fondo oscuro y los datos de acceso
+                        boxContainer.style.display = 'flex';
+                        
+                        const now = new Date();
+                        const dateString = now.toLocaleDateString();
+                        const timeString = now.toLocaleTimeString();
+                        
+                        faceBox.innerHTML = `
+                            <div class="success-title">ACCESO REGISTRADO</div>
+                            👤 ${bestMatch.label}<br>
+                            📅 ${dateString}<br>
+                            ⏰ ${timeString}
+                        `;
+                    }
+                }
+            }, 100);
+        });
+
+        // Función para reiniciar el proceso al hacer clic en "Reintentar"
+        function reiniciarReconocimiento() {
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>
